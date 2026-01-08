@@ -235,6 +235,7 @@ export default function Home() {
         } else {
           updatedCoupons.push(newStatus);
         }
+        saveCoupons(uid, [...updatedCoupons]);
       } catch {
         const errorStatus: CouponStatus = {
           code,
@@ -253,10 +254,10 @@ export default function Home() {
         } else {
           updatedCoupons.push(errorStatus);
         }
+        saveCoupons(uid, [...updatedCoupons]);
       }
     }
 
-    saveCoupons(uid, updatedCoupons);
     setIsRedeeming(false);
   };
 
