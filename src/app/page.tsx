@@ -528,7 +528,7 @@ export default function Home() {
                       {couponList.map((code) => {
                         const historyStatus = getCouponStatusInHistory(code);
                         const isSelected = selectedCoupons.has(code);
-                        const isJustCompleted = couponStatuses.find((s) => s.code === code && (s.status === "success" || s.status === "error"));
+                        const isJustCompleted = redeemingTab === "auto" && couponStatuses.find((s) => s.code === code && (s.status === "success" || s.status === "error"));
 
                         if (hiddenCoupons.has(code)) return null;
                         if (historyStatus && !isJustCompleted) return null;
