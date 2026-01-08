@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/plamworapot/7k-coupon-redeem/compare/v1.0.0...v1.1.0) (2026-01-08)
+
+
+### Features
+
+* add SEO metadata and history sync notice ([384ec61](https://github.com/plamworapot/7k-coupon-redeem/commit/384ec61aa427b183439c9b86c6c826cfc0b341c8))
+
 ## 1.0.0 (2026-01-08)
 
 
