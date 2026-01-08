@@ -476,7 +476,7 @@ export default function Home() {
                     disabled={!uid || isRedeeming || selectedCoupons.size === 0}
                     className="w-full py-3 sm:py-3.5 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 disabled:shadow-none"
                   >
-                    {!uid ? "Enter UID First" : selectedCoupons.size === 0 ? "All Redeemed" : "Redeem"}
+                    {!uid ? "Enter UID First" : selectedCoupons.size === 0 ? "All Redeemed" : `Redeem ${selectedCoupons.size} Coupon${selectedCoupons.size !== 1 ? "s" : ""}`}
                   </button>
 
                   {/* Redemption Progress - Show loading OR last result */}
