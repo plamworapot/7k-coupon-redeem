@@ -19,6 +19,7 @@ interface NetmarbleResponse {
 // Error code to English message mapping
 const ERROR_MESSAGES: Record<number, string> = {
   21002: "Invalid User ID",
+  24001: "Rate limited (1 hour) - too many invalid attempts",
   24002: "Invalid coupon code",
   24003: "Coupon expired",
   24004: "Coupon already redeemed",
