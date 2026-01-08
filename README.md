@@ -50,3 +50,9 @@ Edit `src/data/coupons.json` to add or remove coupon codes:
 - React 19
 - TypeScript
 - Tailwind CSS 4
+
+## Development
+
+This project uses [Claude Code](https://claude.ai/claude-code) for AI-assisted development. Project-specific instructions are defined in `CLAUDE.md`.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
