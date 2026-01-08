@@ -6,15 +6,33 @@ interface RedeemResult {
   success: boolean;
   message: string;
   reward?: string;
-  errorCode?: string;
+  errorCode?: number;
 }
 
 interface CouponStatus {
   code: string;
   status: "pending" | "loading" | "success" | "error";
-  message?: string;
+  errorCode?: number;
+  originalMsg?: string;
   reward?: string;
   timestamp?: number;
+}
+
+// Error code to English message mapping
+const ERROR_MESSAGES: Record<number, string> = {
+  200: "Success",
+  21002: "Invalid User ID",
+  24001: "Rate limited (1 hour) - too many invalid attempts",
+  24002: "Invalid coupon code",
+  24003: "Coupon expired",
+  24004: "Coupon already redeemed",
+};
+
+function getErrorMessage(errorCode?: number, fallback?: string): string {
+  if (errorCode && ERROR_MESSAGES[errorCode]) {
+    return ERROR_MESSAGES[errorCode];
+  }
+  return fallback || "Unknown error";
 }
 
 interface StoredData {
@@ -201,7 +219,8 @@ export default function Home() {
         const newStatus: CouponStatus = {
           code,
           status: result.success ? "success" : "error",
-          message: result.message,
+          errorCode: result.errorCode,
+          originalMsg: result.message,
           reward: result.reward,
           timestamp: Date.now(),
         };
@@ -220,7 +239,7 @@ export default function Home() {
         const errorStatus: CouponStatus = {
           code,
           status: "error",
-          message: "Network error",
+          originalMsg: "Network error",
           timestamp: Date.now(),
         };
 
@@ -430,12 +449,12 @@ export default function Home() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs sm:text-sm font-mono text-white truncate">{status.code}</p>
-                              {status.message && (
+                              {(status.errorCode || status.originalMsg) && (
                                 <p className={`text-[10px] sm:text-xs truncate mt-0.5 ${
                                   status.status === "success" ? "text-green-400" :
                                   status.status === "error" ? "text-red-400" : "text-slate-400"
                                 }`}>
-                                  {status.message}
+                                  {getErrorMessage(status.errorCode, status.originalMsg)}
                                 </p>
                               )}
                             </div>
@@ -584,7 +603,7 @@ export default function Home() {
                               <p className={`text-[10px] sm:text-xs truncate mt-0.5 ${
                                 entry.status === "success" ? "text-green-400" : "text-red-400"
                               }`}>
-                                {entry.message}
+                                {getErrorMessage(entry.errorCode, entry.originalMsg)}
                               </p>
                             </div>
                             <button
