@@ -10,13 +10,10 @@ interface RedeemRequest {
 }
 
 interface NetmarbleResponse {
-  resultCode: number;
-  resultMessage?: string;
-  resultData?: {
-    rewardTitle?: string;
-  };
-  errorCode?: number;
+  success: boolean;
+  errorCode: number;
   errorMessage?: string;
+  resultData?: { quantity: number }[];
 }
 
 // Error code to English message mapping
@@ -97,8 +94,8 @@ export async function POST(request: NextRequest) {
 
     const data: NetmarbleResponse = await response.json();
 
-    const isSuccess = data.resultCode === 200;
-    const errorCode = data.errorCode || data.resultCode;
+    const isSuccess = data.success || data.errorCode === 200;
+    const errorCode = data.errorCode;
 
     // Upsert coupon on success or already redeemed (valid coupon)
     if (isSuccess || errorCode === 24004) {
@@ -109,7 +106,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: "Coupon redeemed successfully!",
-        reward: data.resultData?.rewardTitle || "Reward sent to mailbox",
+        reward: "Reward sent to mailbox",
         raw: data,
       });
     }
@@ -130,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: false,
-      message: getErrorMessage(errorCode, data.resultMessage || data.errorMessage),
+      message: getErrorMessage(errorCode, data.errorMessage),
       errorCode,
       raw: data,
     });
