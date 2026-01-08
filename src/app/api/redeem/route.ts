@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       couponCode: body.couponCode,
       gameCode: "tskgb",
       channelCode: 100,
-      langCd: "en",
+      langCd: "EN_US",
     };
 
     const response = await fetch("https://coupon.netmarble.com/api/coupon", {
@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Coupon redeemed successfully!",
         reward: data.resultData?.rewardTitle || "Reward sent to mailbox",
+        raw: data,
       });
     }
 
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
       success: false,
       message: getErrorMessage(errorCode, data.resultMessage || data.errorMessage),
       errorCode,
+      raw: data,
     });
   } catch (error) {
     console.error("Redeem error:", error);
