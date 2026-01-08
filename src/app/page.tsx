@@ -31,7 +31,7 @@ const DELAY_MS = 1500;
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"auto" | "manual" | "history">("auto");
   const [uid, setUid] = useState("");
-  const [uidLoaded, setUidLoaded] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [couponInput, setCouponInput] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [couponStatuses, setCouponStatuses] = useState<CouponStatus[]>([]);
@@ -40,13 +40,23 @@ export default function Home() {
 
   const couponList: string[] = couponsData.coupons;
 
-  // Load UID from localStorage on mount
+  // Load UID and stored coupons from localStorage on mount
   useEffect(() => {
     const savedUid = localStorage.getItem(UID_STORAGE_KEY);
     if (savedUid) {
       setUid(savedUid);
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          const allData: Record<string, StoredData> = JSON.parse(stored);
+          const uidData = allData[savedUid];
+          setStoredCoupons(uidData?.coupons || []);
+        } catch {
+          setStoredCoupons([]);
+        }
+      }
     }
-    setUidLoaded(true);
+    setDataLoaded(true);
   }, []);
 
   // Save UID to localStorage and load stored coupons when UID changes
@@ -480,7 +490,7 @@ export default function Home() {
                   })()}
 
                   {/* Coupon Tags */}
-                  {uidLoaded && uid && (
+                  {dataLoaded && uid && (
                     <div className="flex flex-wrap gap-2">
                       {couponList.map((code) => {
                         const historyStatus = getCouponStatusInHistory(code);
