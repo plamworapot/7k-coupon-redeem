@@ -333,7 +333,7 @@ export default function Home() {
                 )}
               </button>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1 sm:mb-2">
-                Seven Knights Rebirth
+                Seven Knights Rebirth (Global)
               </h1>
               <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base">Coupon Auto Redeem</p>
             </div>
@@ -641,11 +641,17 @@ export default function Home() {
                           </div>
                         ))}
                       </div>
+                      <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 text-center mt-4">
+                        History is stored locally and does not sync across devices
+                      </p>
                     </>
                   ) : (
                     <div className="text-center py-8">
                       <p className="text-slate-400 dark:text-slate-500 text-sm">No history yet</p>
                       <p className="text-slate-500 dark:text-slate-600 text-xs mt-1">Redeemed coupons will appear here</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-3">
+                        History is stored locally and does not sync across devices
+                      </p>
                     </div>
                   )}
                 </div>
