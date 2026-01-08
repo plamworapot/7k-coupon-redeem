@@ -10,24 +10,24 @@ interface RedeemRequest {
 }
 
 interface NetmarbleResponse {
-  resultCode: string;
+  resultCode: number;
   resultMessage?: string;
   resultData?: {
     rewardTitle?: string;
   };
-  errorCode?: string;
+  errorCode?: number;
   errorMessage?: string;
 }
 
 // Error code to English message mapping
-const ERROR_MESSAGES: Record<string, string> = {
-  "21002": "Invalid User ID",
-  "24002": "Invalid coupon code",
-  "24003": "Coupon expired",
-  "24004": "Coupon already redeemed",
+const ERROR_MESSAGES: Record<number, string> = {
+  21002: "Invalid User ID",
+  24002: "Invalid coupon code",
+  24003: "Coupon expired",
+  24004: "Coupon already redeemed",
 };
 
-function getErrorMessage(errorCode?: string, fallback?: string): string {
+function getErrorMessage(errorCode?: number, fallback?: string): string {
   if (errorCode && ERROR_MESSAGES[errorCode]) {
     return ERROR_MESSAGES[errorCode];
   }
@@ -46,6 +46,23 @@ async function isCouponInCache(code: string): Promise<boolean> {
     // Ignore cache errors
   }
   return false;
+}
+
+async function upsertCoupon(code: string): Promise<void> {
+  const inCache = await isCouponInCache(code);
+  if (inCache) return;
+
+  try {
+    await prisma.coupon.upsert({
+      where: { code: code.toUpperCase() },
+      update: {},
+      create: { code: code.toUpperCase() },
+    });
+    const redis = await getRedisClient();
+    await redis.del(CACHE_KEY);
+  } catch (dbError) {
+    console.error("Failed to upsert coupon:", dbError);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -80,23 +97,15 @@ export async function POST(request: NextRequest) {
 
     const data: NetmarbleResponse = await response.json();
 
-    if (data.resultCode === "200" || data.resultCode === "0") {
-      // Upsert coupon to database on successful redemption (skip if already in cache)
-      const inCache = await isCouponInCache(body.couponCode);
-      if (!inCache) {
-        try {
-          await prisma.coupon.upsert({
-            where: { code: body.couponCode.toUpperCase() },
-            update: {},
-            create: { code: body.couponCode.toUpperCase() },
-          });
-          const redis = await getRedisClient();
-          await redis.del(CACHE_KEY);
-        } catch (dbError) {
-          console.error("Failed to upsert coupon:", dbError);
-        }
-      }
+    const isSuccess = data.resultCode === 200;
+    const errorCode = data.errorCode || data.resultCode;
 
+    // Upsert coupon on success or already redeemed (valid coupon)
+    if (isSuccess || errorCode === 24004) {
+      await upsertCoupon(body.couponCode);
+    }
+
+    if (isSuccess) {
       return NextResponse.json({
         success: true,
         message: "Coupon redeemed successfully!",
@@ -104,28 +113,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const errorCode = data.errorCode || data.resultCode;
-
-    // Upsert coupon if already redeemed (valid coupon) - skip if already in cache
-    if (errorCode === "24004") {
-      const inCache = await isCouponInCache(body.couponCode);
-      if (!inCache) {
-        try {
-          await prisma.coupon.upsert({
-            where: { code: body.couponCode.toUpperCase() },
-            update: {},
-            create: { code: body.couponCode.toUpperCase() },
-          });
-          const redis = await getRedisClient();
-          await redis.del(CACHE_KEY);
-        } catch (dbError) {
-          console.error("Failed to upsert coupon:", dbError);
-        }
-      }
-    }
-
     // Mark coupon as expired in database
-    if (errorCode === "24003") {
+    if (errorCode === 24003) {
       try {
         await prisma.coupon.update({
           where: { code: body.couponCode.toUpperCase() },

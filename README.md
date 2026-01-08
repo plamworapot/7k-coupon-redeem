@@ -67,10 +67,11 @@ npm run db:seed      # Seed coupons to database
 npm run db:generate  # Generate Prisma client
 ```
 
-## Error Codes
+## Response Codes
 
 | Code | Message |
 |------|---------|
+| 200 | Success |
 | 21002 | Invalid User ID |
 | 24002 | Invalid coupon code |
 | 24003 | Coupon expired |
