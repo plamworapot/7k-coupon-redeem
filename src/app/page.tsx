@@ -315,7 +315,7 @@ export default function Home() {
         <div className="w-full max-w-md lg:max-w-lg">
           <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-300/50 dark:border-slate-700/50 overflow-hidden">
             {/* Header */}
-            <div className="relative text-center pt-4 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8">
+            <div className="relative pt-4 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8">
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
@@ -332,10 +332,12 @@ export default function Home() {
                   </svg>
                 )}
               </button>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1 sm:mb-2">
-                Seven Knights Rebirth (Global)
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base">Coupon Auto Redeem</p>
+              <div className="text-center px-10 sm:px-12">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1 sm:mb-2">
+                  Seven Knights Rebirth (Global)
+                </h1>
+                <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base">Coupon Auto Redeem</p>
+              </div>
             </div>
 
             {/* User ID Input - Outside Tabs */}
