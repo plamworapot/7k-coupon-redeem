@@ -34,6 +34,10 @@ jobs:
             -H "x-api-key: ${ANTHROPIC_API_KEY}" \
             -d "$PAYLOAD")
 
+          # Debug: print full response
+          echo "Raw API response:"
+          echo "$RESPONSE" | jq .
+
           # Extract the JSON array from response
           CODES=$(echo "$RESPONSE" | jq -r '.content[0].text')
           echo "claude_codes=$CODES" >> $GITHUB_OUTPUT
