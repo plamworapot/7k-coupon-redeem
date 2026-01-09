@@ -1,0 +1,84 @@
+name: Auto Redeem Coupons
+
+on:
+  schedule:
+    # Run at 00:00 and 12:00 UTC every day
+    - cron: '0 0,12 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  redeem:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Fetch coupons from Gemini
+        id: gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_PROMPT: ${{ vars.GEMINI_PROMPT }}
+        run: |
+          # Build JSON payload with properly escaped prompt
+          PAYLOAD=$(jq -n \
+            --arg prompt "$GEMINI_PROMPT" \
+            '{
+              contents: [{ parts: [{ text: $prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
+            }')
+
+          RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}" \
+            -H 'Content-Type: application/json' \
+            -d "$PAYLOAD")
+
+          # Extract the JSON array from response
+          CODES=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+          echo "gemini_codes=$CODES" >> $GITHUB_OUTPUT
+          echo "Gemini returned codes: $CODES"
+
+      - name: Fetch existing coupons
+        id: existing
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          RESPONSE=$(curl -s "${APP_URL}/api/coupons")
+          CODES=$(echo "$RESPONSE" | jq -c '.coupons')
+          echo "existing_codes=$CODES" >> $GITHUB_OUTPUT
+          echo "Existing codes: $CODES"
+
+      - name: Calculate diff and redeem new codes
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          USER_ID: ${{ secrets.USER_ID }}
+          GEMINI_CODES: ${{ steps.gemini.outputs.gemini_codes }}
+          EXISTING_CODES: ${{ steps.existing.outputs.existing_codes }}
+        run: |
+          # Parse codes
+          GEMINI_ARRAY=$(echo "$GEMINI_CODES" | jq -r '.[]' 2>/dev/null || echo "")
+          EXISTING_ARRAY=$(echo "$EXISTING_CODES" | jq -r '.[]' 2>/dev/null || echo "")
+
+          if [ -z "$GEMINI_ARRAY" ]; then
+            echo "No codes returned from Gemini"
+            exit 0
+          fi
+
+          # Find new codes (in Gemini but not in existing)
+          NEW_CODES=$(comm -23 <(echo "$GEMINI_ARRAY" | tr '[:lower:]' '[:upper:]' | sort -u) <(echo "$EXISTING_ARRAY" | tr '[:lower:]' '[:upper:]' | sort -u))
+
+          if [ -z "$NEW_CODES" ]; then
+            echo "No new codes to redeem"
+            exit 0
+          fi
+
+          echo "New codes to redeem:"
+          echo "$NEW_CODES"
+
+          # Redeem each new code
+          echo "$NEW_CODES" | while read -r CODE; do
+            if [ -n "$CODE" ]; then
+              echo "Redeeming: $CODE"
+              RESULT=$(curl -s -X POST "${APP_URL}/api/redeem" \
+                -H 'Content-Type: application/json' \
+                -d "{\"uid\": \"${USER_ID}\", \"couponCode\": \"${CODE}\"}")
+              echo "Result: $RESULT"
+              sleep 1  # Rate limit protection
+            fi
+          done
