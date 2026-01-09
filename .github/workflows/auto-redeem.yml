@@ -11,29 +11,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Fetch coupons from Gemini
-        id: gemini
+      - name: Fetch coupons from Claude
+        id: claude
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-          GEMINI_PROMPT: ${{ vars.GEMINI_PROMPT }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL }}
+          CLAUDE_PROMPT: ${{ vars.CLAUDE_PROMPT }}
         run: |
           # Build JSON payload with properly escaped prompt
           PAYLOAD=$(jq -n \
-            --arg prompt "$GEMINI_PROMPT" \
+            --arg model "$CLAUDE_MODEL" \
+            --arg prompt "$CLAUDE_PROMPT" \
             '{
-              contents: [{ parts: [{ text: $prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
+              model: $model,
+              max_tokens: 1024,
+              messages: [{ role: "user", content: $prompt }]
             }')
 
-          RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}" \
+          RESPONSE=$(curl -s "https://api.anthropic.com/v1/messages" \
             -H 'Content-Type: application/json' \
+            -H 'anthropic-version: 2023-06-01' \
+            -H "x-api-key: ${ANTHROPIC_API_KEY}" \
             -d "$PAYLOAD")
 
           # Extract the JSON array from response
-          CODES=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
-          echo "gemini_codes=$CODES" >> $GITHUB_OUTPUT
-          echo "Gemini returned codes: $CODES"
+          CODES=$(echo "$RESPONSE" | jq -r '.content[0].text')
+          echo "claude_codes=$CODES" >> $GITHUB_OUTPUT
+          echo "Claude returned codes: $CODES"
 
       - name: Fetch existing coupons
         id: existing
@@ -49,20 +53,20 @@ jobs:
         env:
           APP_URL: ${{ vars.APP_URL }}
           USER_ID: ${{ secrets.USER_ID }}
-          GEMINI_CODES: ${{ steps.gemini.outputs.gemini_codes }}
+          CLAUDE_CODES: ${{ steps.claude.outputs.claude_codes }}
           EXISTING_CODES: ${{ steps.existing.outputs.existing_codes }}
         run: |
           # Parse codes
-          GEMINI_ARRAY=$(echo "$GEMINI_CODES" | jq -r '.[]' 2>/dev/null || echo "")
+          CLAUDE_ARRAY=$(echo "$CLAUDE_CODES" | jq -r '.[]' 2>/dev/null || echo "")
           EXISTING_ARRAY=$(echo "$EXISTING_CODES" | jq -r '.[]' 2>/dev/null || echo "")
 
-          if [ -z "$GEMINI_ARRAY" ]; then
-            echo "No codes returned from Gemini"
+          if [ -z "$CLAUDE_ARRAY" ]; then
+            echo "No codes returned from Claude"
             exit 0
           fi
 
-          # Find new codes (in Gemini but not in existing)
-          NEW_CODES=$(comm -23 <(echo "$GEMINI_ARRAY" | tr '[:lower:]' '[:upper:]' | sort -u) <(echo "$EXISTING_ARRAY" | tr '[:lower:]' '[:upper:]' | sort -u))
+          # Find new codes (in Claude but not in existing)
+          NEW_CODES=$(comm -23 <(echo "$CLAUDE_ARRAY" | tr '[:lower:]' '[:upper:]' | sort -u) <(echo "$EXISTING_ARRAY" | tr '[:lower:]' '[:upper:]' | sort -u))
 
           if [ -z "$NEW_CODES" ]; then
             echo "No new codes to redeem"
