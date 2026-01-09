@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.0](https://github.com/plamworapot/7k-coupon-redeem/compare/v1.1.1...v1.2.0) (2026-01-09)
+
+
+### Features
+
+* add auto-redeem workflow for Gemini coupon discovery ([6f664e0](https://github.com/plamworapot/7k-coupon-redeem/commit/6f664e0cd51805aeab947bfbba9aa646cbe113c1))
+* add auto-redeem workflow for Gemini coupon discovery ([a5e612d](https://github.com/plamworapot/7k-coupon-redeem/commit/a5e612d1334cda0868b9d08998b0a8ced542be2d))
+* switch from Gemini to Claude API ([2906438](https://github.com/plamworapot/7k-coupon-redeem/commit/2906438be2f676391792bd6a25f71d2bb27581a8))
+
 ## [1.1.1](https://github.com/plamworapot/7k-coupon-redeem/compare/v1.1.0...v1.1.1) (2026-01-09)
 
 
