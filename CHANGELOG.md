@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/plamworapot/7k-coupon-redeem/compare/v1.1.0...v1.1.1) (2026-01-09)
+
+
+### Bug Fixes
+
+* prevent theme toggle from overlapping title ([fff1d13](https://github.com/plamworapot/7k-coupon-redeem/commit/fff1d1301252960ac26959b907ec5a78b117272e))
+
 ## [1.1.0](https://github.com/plamworapot/7k-coupon-redeem/compare/v1.0.0...v1.1.0) (2026-01-08)
 
 
