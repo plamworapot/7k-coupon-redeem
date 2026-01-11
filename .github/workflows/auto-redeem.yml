@@ -1,0 +1,184 @@
+name: Auto Redeem Coupons
+
+on:
+  schedule:
+    # Run at 00:00 and 12:00 UTC every day
+    - cron: '0 0,12 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  redeem:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Fetch coupons from Gemini API
+        id: gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.0-flash-exp' }}
+          GEMINI_PROMPT: ${{ vars.GEMINI_PROMPT }}
+        run: |
+          # Validate required environment variables
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "Error: GEMINI_API_KEY secret is not set"
+            exit 1
+          fi
+
+          if [ -z "$GEMINI_PROMPT" ]; then
+            echo "Error: GEMINI_PROMPT variable is not set"
+            exit 1
+          fi
+
+          # Build JSON payload with properly escaped prompt
+          PAYLOAD=$(jq -n \
+            --arg prompt "$GEMINI_PROMPT" \
+            '{
+              contents: [{ parts: [{ text: $prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
+            }')
+
+          echo "Calling Gemini API with model: $GEMINI_MODEL"
+
+          # Call Gemini API
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}" \
+            -H 'Content-Type: application/json' \
+            -d "$PAYLOAD")
+
+          # Extract HTTP status code
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Error: Gemini API returned status $HTTP_CODE"
+            echo "Response: $RESPONSE_BODY"
+            exit 1
+          fi
+
+          # Debug: print full response
+          echo "Raw API response:"
+          echo "$RESPONSE_BODY" | jq .
+
+          # Extract the JSON array from response
+          CODES=$(echo "$RESPONSE_BODY" | jq -r '.candidates[0].content.parts[0].text')
+
+          # Validate that CODES is a valid JSON array
+          if ! echo "$CODES" | jq empty 2>/dev/null; then
+            echo "Error: Response is not valid JSON"
+            echo "Response: $CODES"
+            exit 1
+          fi
+
+          echo "gemini_codes=$CODES" >> $GITHUB_OUTPUT
+          echo "Gemini returned codes: $CODES"
+
+      - name: Fetch existing coupons from database
+        id: existing
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "Error: APP_URL variable is not set"
+            exit 1
+          fi
+
+          echo "Fetching existing coupons from: ${APP_URL}/api/coupons"
+          RESPONSE=$(curl -s "${APP_URL}/api/coupons")
+
+          # Validate response
+          if ! echo "$RESPONSE" | jq empty 2>/dev/null; then
+            echo "Error: Invalid JSON response from coupons API"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+
+          CODES=$(echo "$RESPONSE" | jq -c '.coupons')
+          echo "existing_codes=$CODES" >> $GITHUB_OUTPUT
+          echo "Existing codes in database: $CODES"
+
+      - name: Calculate diff and redeem new codes
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          USER_ID: ${{ secrets.USER_ID }}
+          GEMINI_CODES: ${{ steps.gemini.outputs.gemini_codes }}
+          EXISTING_CODES: ${{ steps.existing.outputs.existing_codes }}
+        run: |
+          if [ -z "$USER_ID" ]; then
+            echo "Error: USER_ID secret is not set"
+            exit 1
+          fi
+
+          # Parse codes
+          GEMINI_ARRAY=$(echo "$GEMINI_CODES" | jq -r '.[]' 2>/dev/null || echo "")
+          EXISTING_ARRAY=$(echo "$EXISTING_CODES" | jq -r '.[]' 2>/dev/null || echo "")
+
+          if [ -z "$GEMINI_ARRAY" ]; then
+            echo "No codes returned from Gemini"
+            exit 0
+          fi
+
+          echo "Codes from Gemini:"
+          echo "$GEMINI_ARRAY"
+
+          echo ""
+          echo "Existing codes in database:"
+          echo "$EXISTING_ARRAY"
+
+          # Find new codes (in Gemini but not in existing)
+          NEW_CODES=$(comm -23 <(echo "$GEMINI_ARRAY" | tr '[:lower:]' '[:upper:]' | sort -u) <(echo "$EXISTING_ARRAY" | tr '[:lower:]' '[:upper:]' | sort -u))
+
+          if [ -z "$NEW_CODES" ]; then
+            echo ""
+            echo "✓ No new codes to redeem - all codes are already in database"
+            exit 0
+          fi
+
+          echo ""
+          echo "New codes to redeem:"
+          echo "$NEW_CODES"
+
+          TOTAL=$(echo "$NEW_CODES" | wc -l)
+          COUNT=0
+          SUCCESS=0
+          FAILED=0
+
+          # Redeem each new code
+          echo ""
+          echo "Starting redemption process..."
+          echo "----------------------------------------"
+
+          echo "$NEW_CODES" | while read -r CODE; do
+            if [ -n "$CODE" ]; then
+              COUNT=$((COUNT + 1))
+              echo ""
+              echo "[$COUNT/$TOTAL] Redeeming: $CODE"
+
+              RESULT=$(curl -s -X POST "${APP_URL}/api/redeem" \
+                -H 'Content-Type: application/json' \
+                -d "{\"uid\": \"${USER_ID}\", \"couponCode\": \"${CODE}\"}")
+
+              # Check if redemption was successful
+              IS_SUCCESS=$(echo "$RESULT" | jq -r '.success')
+              MESSAGE=$(echo "$RESULT" | jq -r '.message')
+
+              if [ "$IS_SUCCESS" = "true" ]; then
+                SUCCESS=$((SUCCESS + 1))
+                echo "✓ Success: $MESSAGE"
+              else
+                FAILED=$((FAILED + 1))
+                ERROR_CODE=$(echo "$RESULT" | jq -r '.errorCode // "N/A"')
+                echo "✗ Failed: $MESSAGE (Error code: $ERROR_CODE)"
+              fi
+
+              echo "Response: $RESULT"
+
+              # Rate limit protection
+              sleep 2
+            fi
+          done
+
+          echo ""
+          echo "----------------------------------------"
+          echo "Summary: $SUCCESS succeeded, $FAILED failed out of $TOTAL codes"

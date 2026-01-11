@@ -78,6 +78,46 @@ npm run db:generate  # Generate Prisma client
 | 24003 | Coupon expired |
 | 24004 | Coupon already redeemed |
 
+## GitHub Action - Auto Redeem
+
+The project includes a GitHub Action that automatically discovers and redeems new coupon codes twice daily (00:00 and 12:00 UTC).
+
+### How it works
+
+1. **Fetch Coupons**: Calls Google Gemini API to scrape/discover coupon codes from the internet
+2. **Compare**: Checks against existing coupons in the database
+3. **Redeem**: Automatically redeems new codes using your configured User ID
+4. **Update Database**: Successfully redeemed codes are added to the database
+
+### Required Secrets
+
+Configure these in **Settings → Secrets and variables → Actions → Secrets**:
+
+| Secret | Description |
+|--------|-------------|
+| `GEMINI_API_KEY` | Your Google AI Studio API key for Gemini |
+| `USER_ID` | Your Seven Knights Rebirth User ID (for auto-redemption) |
+
+### Required Variables
+
+Configure these in **Settings → Secrets and variables → Actions → Variables**:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `APP_URL` | Your deployed application URL | `https://your-app.vercel.app` |
+| `GEMINI_MODEL` | Gemini model to use (optional) | `gemini-2.0-flash-exp` |
+| `GEMINI_PROMPT` | Prompt instructing Gemini to find coupon codes | See example below |
+
+### Example GEMINI_PROMPT
+
+```
+Search the internet for active Seven Knights Rebirth coupon codes. Look for official social media posts, gaming news sites, and community forums. Return ONLY a JSON array of coupon codes in this exact format: ["CODE1", "CODE2", "CODE3"]. Do not include any explanation or additional text.
+```
+
+### Manual Trigger
+
+You can manually trigger the workflow from **Actions → Auto Redeem Coupons → Run workflow**.
+
 ## Tech Stack
 
 - Next.js 16
